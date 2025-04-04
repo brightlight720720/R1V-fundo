@@ -27,8 +27,8 @@ DS_CONFIG="src/r1-v/local_scripts/zero1_no_optimizer.json"  # Note that other ze
 # - GPU 0 for training
 # - GPU 1 for vLLM inference
 
-CUDA_VISIBLE_DEVICES="0,1" torchrun \
-    --nproc_per_node="1" \
+CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun \
+    --nproc_per_node="3" \
     --nnodes="1" \
     --node_rank="0" \
     --master_addr="127.0.0.1" \
@@ -40,8 +40,8 @@ CUDA_VISIBLE_DEVICES="0,1" torchrun \
     --dataset_name ${HF_DATASET} \
     --max_prompt_length 4096 \
     --max_completion_length 2048 \
-    --per_device_train_batch_size 1 \
-    --gradient_accumulation_steps 8 \
+    --per_device_train_batch_size 2 \
+    --gradient_accumulation_steps 4 \
     --learning_rate 1e-6 \
     --lr_scheduler_type "constant" \
     --logging_steps 1 \
@@ -57,8 +57,8 @@ CUDA_VISIBLE_DEVICES="0,1" torchrun \
     --save_only_model true \
     --report_to wandb \
     --temperature 1.0 \
-    --num_generations 4 \
-    --vllm_device "cuda:1" \
+    --num_generations 8 \
+    --vllm_device "cuda:3" \
     --vllm_gpu_memory_utilization 0.9 \
     --deepspeed ${DS_CONFIG} \
     2>&1 | tee "${OUTPUT_DIR}/training_log.txt"
