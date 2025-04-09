@@ -18,7 +18,7 @@ if [ ! -d "$OUTPUT_DIR" ]; then
  mkdir -p "$OUTPUT_DIR"
 fi
 RUN_NAME="grpo_qwen25vl_3b"
-DS_CONFIG="src/r1-v/local_scripts/zero1_no_optimizer.json"  # Note that other zero setting would meet bugs related to vllm at current stage.
+DS_CONFIG="/workspace/R1-V_fundo/src/r1-v/local_scripts/zero1_no_optimizer.json"
 
 # NOTE: you are expected to use X + 1 cards for X training proc and 1 vLLM proc 
 # e.g., the visible devices should be 0,1,2,3,4 for 5 cards, and  --nproc_per_node="4"
@@ -33,7 +33,7 @@ CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun \
     --node_rank="0" \
     --master_addr="127.0.0.1" \
     --master_port="12345" \
-    src/open_r1/grpo.py \
+    /workspace/R1-V_fundo/src/r1-v/src/open_r1/grpo.py \
     --use_vllm true \
     --output_dir ${OUTPUT_DIR} \
     --model_name_or_path ${QWEN_PATH} \
@@ -58,7 +58,8 @@ CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun \
     --report_to wandb \
     --temperature 1.0 \
     --num_generations 8 \
-    --vllm_device "cuda:3" \
+    --vllm_device "cuda:1" \
     --vllm_gpu_memory_utilization 0.9 \
     --deepspeed ${DS_CONFIG} \
     2>&1 | tee "${OUTPUT_DIR}/training_log.txt"
+
