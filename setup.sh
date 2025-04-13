@@ -3,8 +3,8 @@ cd src/r1-v
 pip install -e ".[dev]"
 
 python -m pip install --upgrade pip
-pip install torch==2.1.0+cu121 torchvision==0.12.0+cu121 torchaudio==2.1.0 \
-    --index-url https://download.pytorch.org/whl/cu121
+#pip install torch==2.1.0+cu121 torchvision==0.12.0+cu121 torchaudio==2.1.0 \
+#    --index-url https://download.pytorch.org/whl/cu121
 
 
 # Addtional modules
