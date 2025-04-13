@@ -11,7 +11,8 @@ pip install torch==2.1.0+cu121 torchvision==0.12.0+cu121 torchaudio==2.1.0 \
 pip install wandb==0.18.3
 pip install tensorboardx
 pip install qwen_vl_utils torchvision
-pip install flash-attn --no-build-isolation
+#pip install flash-attn --no-build-isolation
+pip install flash_attn==2.7.4.post1
 
 
 # vLLM support 
