@@ -13,7 +13,7 @@ pip install tensorboardx
 pip install qwen_vl_utils torchvision
 #pip install flash-attn --no-build-isolation
 #pip install flash_attn==2.7.4.post1
-pip install flash-attn==2.7.1.post4
+#pip install flash-attn==2.7.1.post4 (after bash setup!)
 
 
 # vLLM support 
