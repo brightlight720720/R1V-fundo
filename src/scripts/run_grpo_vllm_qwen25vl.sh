@@ -11,7 +11,7 @@ export HF_TOKEN=" "  # For dataset access
 export DEBUG_MODE="true"
 export LOG_PATH="./vllm_run.txt"
 
-QWEN_PATH="/workspace/models/Qwen2.5-VL-3B"
+QWEN_PATH="/workspace/models/Qwen2.5-VL-3B-Instruct"
 HF_DATASET="Leeyuyu/fundo"
 OUTPUT_DIR="/workspace/outputs/grpo_run"
 if [ ! -d "$OUTPUT_DIR" ]; then
@@ -57,8 +57,8 @@ CUDA_VISIBLE_DEVICES="0,1,2,3" torchrun \
     --save_only_model true \
     --report_to wandb \
     --temperature 1.0 \
-    --num_generations 8 \
-    --vllm_device "cuda:1" \
+    --num_generations 4 \
+    --vllm_device "cuda:3" \
     --vllm_gpu_memory_utilization 0.9 \
     --deepspeed ${DS_CONFIG} \
     2>&1 | tee "${OUTPUT_DIR}/training_log.txt"
