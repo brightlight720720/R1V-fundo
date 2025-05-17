@@ -17,6 +17,10 @@ import re
 from datetime import datetime
 from dataclasses import dataclass, field
 from typing import Optional
+import re
+import logging
+import sys
+from pathlib import Path
 
 from datasets import load_dataset, load_from_disk
 from transformers import Qwen2VLForConditionalGeneration
@@ -25,6 +29,8 @@ from math_verify import parse, verify
 from open_r1.trainer import Qwen2VLGRPOTrainer, Qwen2VLGRPOVLLMTrainer, Qwen2VLGRPOVLLMTrainerModified
 from trl import GRPOConfig, GRPOTrainer, ModelConfig, ScriptArguments, TrlParser, get_peft_config
 
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 @dataclass
 class GRPOScriptArguments(ScriptArguments):
@@ -74,7 +80,7 @@ def accuracy_reward(completions, solution, **kwargs):
                 ground_truth = sol_match.group(1).strip() if sol_match else sol.strip()
                 
                 # Extract answer from content if it has think/answer tags
-                content_match = re.search(r'<answer>(.*?)</answer>', content)
+                content_match = re.search(r'<answer>(.*?)</answer>', content, re.DOTALL))
                 student_answer = content_match.group(1).strip() if content_match else content.strip()
                 
                 # Compare the extracted answers
@@ -87,7 +93,7 @@ def accuracy_reward(completions, solution, **kwargs):
         if os.getenv("DEBUG_MODE") == "true":
             log_path = os.getenv("LOG_PATH")
             # local_rank = int(os.getenv("LOCAL_RANK", 0))
-            with open(log_path, "a") as f:
+            with open(log_path, "a",encoding='utf-8', errors='replace') as f:
                 f.write(f"------------- {current_time} Accuracy reward: {reward} -------------\n")
                 f.write(f"Content: {content}\n")
                 f.write(f"Solution: {sol}\n")
