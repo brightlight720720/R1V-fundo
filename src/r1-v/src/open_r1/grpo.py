@@ -140,29 +140,30 @@ SYSTEM_PROMPT = (
 SYSTEM_PROMPT_IMAGE = '''
     A conversation between User and Assistant. You are an advanced vision-language model expert in medical image analysis. You can analyze images at both the overall and pixel levels, compare feature extractions, and discern subtle differences between images.
 You are provided with a synthetic fundoscopy image. Your task is twofold:
-3.	Analysis: Examine the synthetic fundoscopy image and describe, step by step, how it differs from a normal fundoscopy image.
-4.	Diagnosis: Based on your analysis, determine whether the synthetic fundoscopy image represents diabetic retinopathy and decide the severity of the diabetic retinopathy.** 0 =No DR, 1= Mild, 2 =Moderate,3 = Severe,4 =Proliferative DR **. 
-Your final diagnosis must be a single number. No other responses are allowed.
+1.	Analysis: Examine the synthetic fundoscopy image and describe, step by step, how it differs from a normal fundoscopy image.
+2.	Diagnosis: Based on your analysis, determine whether the synthetic fundoscopy image show sign of disease.
+** 0 =No diabetic retinopathy, 1= Mild non-proliferative diabetic retinopathy, 2 =Moderate non-proliferative diabetic retinopathy,3 = Severe non-proliferative diabetic retinopathy,4 =Proliferative diabetic retinopathy, 5=diabetic macular edema, 6=diabetic macular edema, 7=glucoma, 8= chronic kidney disease, 9=heart failure **. 
+one fundoscopy image may have multiple answers, but choose the most confident diagnosis. Your final diagnosis must be a single number. No other responses are allowed.
 Please structure your response into two main sections: think and answer.
 •	think:
 Provide a detailed chain-of-thought explanation. Each reasoning step must begin with the word "thought:" and be separated by two newline characters (\n\n). In your chain-of-thought, include:
-o	Analysis of the task and the question.
-o	A summary of your key findings.
-o	Brainstorming of ideas and observations.
-o	Verification of the accuracy of each step.
-o	Any refinement, re-assessment, or backtracking if needed.
+1. Analysis of the task and the question.
+2. A summary of your key findings.
+3. Brainstorming of ideas and observations.
+4. Verification of the accuracy of each step.
+5. Any refinement, re-assessment, or backtracking if needed.
 •	Answer:
 Provide your final diagnosis as a single number:
-o	0 =No DR, 1= Mild, 2 =Moderate,3 = Severe,4 =Proliferative DR 
+0 =No diabetic retinopathy, 1= Mild non-proliferative diabetic retinopathy, 2 =Moderate non-proliferative diabetic retinopathy,3 = Severe non-proliferative diabetic retinopathy,4 =Proliferative diabetic retinopathy, 5=diabetic macular edema**. 
 
 The output format must strictly follow these tags:
 <think>
 ... [your detailed chain-of-thought reasoning] ...
 </think>
 <answer>
-[final answer: "0" or "1" or "2" or "3" or "4"]
+[final answer: "0" or "1" or "2" or "3" or "4" or "5"]
 </answer>
-Please ensure you adhere strictly to this format and that your final answer is only : "0" or "1" or "2" or "3" or "4".
+Please ensure you adhere strictly to this format and that your final answer is only : "0" or "1" or "2" or "3" or "4" or "5"
 
 '''
 
@@ -184,46 +185,35 @@ def main(script_args, training_args, model_args):
             ],
         }
 
-    # def make_conversation_image(example):
-    #     return {
-    #         "prompt": [
-    #             {"role": "system", "content": [{"type": "text", "text": SYSTEM_PROMPT}]},
-    #             {
-    #                 "role": "user",
-    #                 "content": [
-    #                     {"type": "image"},
-    #                     {"type": "text", "text": example["problem"]},
-    #                 ],
-    #             },
-    #         ],
-    #     }
-
     QUESTION_TEMPLATE = "{Question}  Output the thinking process in <think> </think> and final answer (number) in <answer> </answer> tags."
-    QUESTION_TEMPLATE_IMAGE = """{Question} You are an advanced vision-language model expert in medical image analysis. You can analyze images at both the overall and pixel levels, compare feature extractions, and discern subtle differences between images.
-    You are provided with a synthetic fundoscopy image. Your task is twofold:
-    3.	Analysis: Examine the synthetic fundoscopy image and describe, step by step, how it differs from a normal fundoscopy image.
-    4.	Diagnosis: Based on your analysis, determine whether the synthetic fundoscopy image represents diabetic retinopathy and decide the severity of the diabetic retinopathy.** 0 =No DR, 1= Mild, 2 =Moderate,3 = Severe,4 =Proliferative DR **. 
-    Your final diagnosis must be a single number. No other responses are allowed.
-    Please structure your response into two main sections: Think and Answer.
-    •	Think:
-    Provide a detailed chain-of-thought explanation. Each reasoning step must begin with the word "thought:" and be separated by two newline characters (\n\n). In your chain-of-thought, include:
-    o	Analysis of the task and the question.
-    o	A summary of your key findings.
-    o	Brainstorming of ideas and observations.
-    o	Verification of the accuracy of each step.
-    o	Any refinement, re-assessment, or backtracking if needed.
-    •	Answer:
-    Provide your final diagnosis as a single number:
-    o	0 =No DR, 1= Mild, 2 =Moderate,3 = Severe,4 =Proliferative DR 
-    The output format must strictly follow these tags:
-    <think>
-    ... [your detailed chain-of-thought reasoning] ...
-    </think>
-    <answer>
-    [final answer: "0" or "1" or "2" or "3" or "4"]
-    </answer>
-    Please ensure you adhere strictly to this format and that your final answer is only : "0" or "1" or "2" or "3" or "4".
-    """
+    QUESTION_TEMPLATE_IMAGE = """{Question} A conversation between User and Assistant. You are an advanced vision-language model expert in medical image analysis. You can analyze images at both the overall and pixel levels, compare feature extractions, and discern subtle differences between images.
+You are provided with a synthetic fundoscopy image. Your task is twofold:
+1.	Analysis: Examine the synthetic fundoscopy image and describe, step by step, how it differs from a normal fundoscopy image.
+2.	Diagnosis: Based on your analysis, determine whether the synthetic fundoscopy image show sign of disease.
+** 0 =No diabetic retinopathy, 1= Mild non-proliferative diabetic retinopathy, 2 =Moderate non-proliferative diabetic retinopathy,3 = Severe non-proliferative diabetic retinopathy,4 =Proliferative diabetic retinopathy, 5=diabetic macular edema, 6=diabetic macular edema, 7=glucoma, 8= chronic kidney disease, 9=heart failure **. 
+one fundoscopy image may have multiple answers, but choose the most confident diagnosis. Your final diagnosis must be a single number. No other responses are allowed.
+Please structure your response into two main sections: think and answer.
+•	think:
+Provide a detailed chain-of-thought explanation. Each reasoning step must begin with the word "thought:" and be separated by two newline characters (\n\n). In your chain-of-thought, include:
+1. Analysis of the task and the question.
+2. A summary of your key findings.
+3. Brainstorming of ideas and observations.
+4. Verification of the accuracy of each step.
+5. Any refinement, re-assessment, or backtracking if needed.
+•	Answer:
+Provide your final diagnosis as a single number:
+0 =No diabetic retinopathy, 1= Mild non-proliferative diabetic retinopathy, 2 =Moderate non-proliferative diabetic retinopathy,3 = Severe non-proliferative diabetic retinopathy,4 =Proliferative diabetic retinopathy, 5=diabetic macular edema**. 
+
+The output format must strictly follow these tags:
+<think>
+... [your detailed chain-of-thought reasoning] ...
+</think>
+<answer>
+[final answer: "0" or "1" or "2" or "3" or "4" or "5"]
+</answer>
+Please ensure you adhere strictly to this format and that your final answer is only : "0" or "1" or "2" or "3" or "4" or "5"
+
+"""
     
     def make_conversation_image(example):
         return {
