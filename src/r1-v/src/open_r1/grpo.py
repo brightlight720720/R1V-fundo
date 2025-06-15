@@ -202,16 +202,16 @@ Provide a detailed chain-of-thought explanation. Each reasoning step must begin 
 5. Any refinement, re-assessment, or backtracking if needed.
 •	Answer:
 Provide your final diagnosis as a single number:
-0 =No diabetic retinopathy, 1= Mild non-proliferative diabetic retinopathy, 2 =Moderate non-proliferative diabetic retinopathy,3 = Severe non-proliferative diabetic retinopathy,4 =Proliferative diabetic retinopathy, 5=diabetic macular edema**. 
+0 =No diabetic retinopathy, 1= Mild non-proliferative diabetic retinopathy, 2 =Moderate non-proliferative diabetic retinopathy,3 = Severe non-proliferative diabetic retinopathy,4 =Proliferative diabetic retinopathy**. 
 
 The output format must strictly follow these tags:
 <think>
 ... [your detailed chain-of-thought reasoning] ...
 </think>
 <answer>
-[final answer: "0" or "1" or "2" or "3" or "4" or "5"]
+[final answer: "0" or "1" or "2" or "3" or "4"]
 </answer>
-Please ensure you adhere strictly to this format and that your final answer is only : "0" or "1" or "2" or "3" or "4" or "5"
+Please ensure you adhere strictly to this format and that your final answer is only : "0" or "1" or "2" or "3" or "4"
 
 """
     
