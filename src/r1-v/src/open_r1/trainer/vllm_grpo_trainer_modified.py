@@ -61,6 +61,7 @@ from trl.trainer.utils import generate_model_card, get_comet_experiment_url, pad
 from trl import GRPOTrainer
 
 import copy
+from dataclasses import dataclass, field
 
 if is_peft_available():
     from peft import PeftConfig, get_peft_model
@@ -150,7 +151,11 @@ class Qwen2VLGRPOVLLMTrainerModified(Trainer):
                     model, **model_init_kwargs
                 )
             else:
-                model = AutoModelForCausalLM.from_pretrained(model, **model_init_kwargs)
+                #model = AutoModelForCausalLM.from_pretrained(model, **model_init_kwargs)
+                model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+                    model, **model_init_kwargs
+                )
+                
         else:
             model_id = model.config._name_or_path
             if args.model_init_kwargs is not None:
@@ -177,7 +182,8 @@ class Qwen2VLGRPOVLLMTrainerModified(Trainer):
                     model_id, **model_init_kwargs
                 )
             else:
-                self.ref_model = AutoModelForCausalLM.from_pretrained(
+                self.ref_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+                #self.ref_model = AutoModelForCausalLM.from_pretrained(
                     model_id, **model_init_kwargs
                 )
         elif peft_config is None:
@@ -199,10 +205,18 @@ class Qwen2VLGRPOVLLMTrainerModified(Trainer):
                     processing_class.image_processor.max_pixels = max_pixels
                     processing_class.image_processor.min_pixels = min_pixels
             else:
-                processing_class = AutoTokenizer.from_pretrained(
-                    model.config._name_or_path, padding_side="left"
-                )
-                pad_token_id = processing_class.pad_token_id
+                processing_class = AutoProcessor.from_pretrained(model_id)
+                pad_token_id = processing_class.tokenizer.pad_token_id
+                processing_class.pad_token_id = pad_token_id
+                processing_class.eos_token_id = processing_class.tokenizer.eos_token_id
+                processing_class.image_processor.max_pixels = max_pixels
+                processing_class.image_processor.min_pixels = min_pixels
+
+                
+                #processing_class = AutoTokenizer.from_pretrained(
+                #    model.config._name_or_path, padding_side="left"
+                #)
+                #pad_token_id = processing_class.pad_token_id
 
         # Reward functions
         if not isinstance(reward_funcs, list):
@@ -261,6 +275,9 @@ class Qwen2VLGRPOVLLMTrainerModified(Trainer):
             pad_token_id=pad_token_id,
         )
         self.beta = args.beta
+        self.target_kl = args.target_kl 
+         
+
 
         # The trainer estimates the number of FLOPs (floating-point operations) using the number of elements in the
         # input tensor associated with the key "input_ids". However, in GRPO, the sampled data does not include the
@@ -346,7 +363,7 @@ class Qwen2VLGRPOVLLMTrainerModified(Trainer):
                                 "max_pixels": max_pixels,
                                 "min_pixels": min_pixels,
                             }
-                            if "Qwen2-VL" in model_id or "Qwen2.5-VL" in model_id
+                            if "Qwen2-VL" in model_id or "Qwen2.5-VL" in model_id or "checkpoint" in model_id
                             else None
                         ),
                         max_model_len=args.max_prompt_length + args.max_completion_length,
@@ -732,6 +749,35 @@ class Qwen2VLGRPOVLLMTrainerModified(Trainer):
         self._metrics["kl"].append(
             self.accelerator.gather_for_metrics(mean_kl).mean().item()
         )
+        if not hasattr(self, "target_kl"):
+            self.target_kl = getattr(self.args, "target_kl", 0.05)  # CLI flag or default
+        if not hasattr(self, "beta"):
+            self.beta = getattr(self.args, "beta", 0.4)  # fallback if not set
+        kl_val = mean_kl.detach().cpu().item()
+        #if kl_val > 0.01:               # only tighten
+        #    factor = kl_val / self.target_kl      # >1
+        #    factor = min(factor, 1.2)             # cap growth
+        #    self.beta *= factor
+            
+        #factor = kl_val / self.target_kl                  # proportional term
+        #factor = min(max(factor, 0.9), 1.2)               # clip to [0.8, 1.5]
+        #self.beta *= factor
+        #self.beta = float(max(min(self.beta, 1.0), 1e-4)) #
+        
+        #if kl_val > self.target_kl:          # too much divergence → tighten
+        #    self.beta *= 1.2                 # +20 %
+        #elif kl_val < self.target_kl / 5:    # very conservative → let go
+        #    self.beta *= 1                 # −10 %
+
+        if kl_val > 0.04:          # too much divergence → tighten
+            self.beta *= 1.3                 # +20 %
+        elif kl_val < 0.04:    # very conservative → let go
+            self.beta = 0.03                 # −10 %
+        
+        self.beta = float(max(min(self.beta, 0.45), 0.01))
+        
+        self._metrics.setdefault("beta", []).append(self.beta)
+
 
         return loss
 

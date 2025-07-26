@@ -195,7 +195,8 @@ class Qwen2VLGRPOTrainer(Trainer):
                 model_init_kwargs.pop("use_cache")
                 model = AriaForConditionalGeneration.from_pretrained(model, **model_init_kwargs)
             else:
-                model = AutoModelForCausalLM.from_pretrained(model, **model_init_kwargs)
+                model = Qwen2_5_VLForConditionalGeneration.from_pretrained(model, **model_init_kwargs)
+                #model = AutoModelForCausalLM.from_pretrained(model, **model_init_kwargs)
         else:
             model_id = model.config._name_or_path
             if args.model_init_kwargs is not None:
@@ -534,7 +535,75 @@ class Qwen2VLGRPOTrainer(Trainer):
                 title        = {{DeepSeekMath: Pushing the Limits of Mathematical Reasoning in Open Language Models}},
                 author       = {Zhihong Shao and Peiyi Wang and Qihao Zhu and Runxin Xu and Junxiao Song and Mingchuan Zhang and Y. K. Li and Y. Wu and Daya Guo},
                 year         = 2024,
-                eprint       = {arXiv:2402.03300},
+                eprint       = {arXiv:2402.03300
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        },
             """
         )
 

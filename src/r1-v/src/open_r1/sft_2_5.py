@@ -62,6 +62,7 @@ from qwen_vl_utils import process_vision_info
 logger = logging.getLogger(__name__)
 
 
+
 @dataclass
 class SFTConfig(trl.SFTConfig):
     """
@@ -89,6 +90,23 @@ class SFTConfig(trl.SFTConfig):
 
 processor = None
 
+from typing import Optional
+import re
+
+def ensure_trailing_digit(text: str) -> Optional[str]:
+    """
+    Ensures the string ends with a digit '0'-'4'. Returns None on failure.
+    """
+    # ... (same logic as before) ...
+    
+    matches = re.findall(r"<answer>\s*([0-4])\s*</answer>", text, flags=re.I)
+    
+    if matches:
+        last_digit = matches[-1]
+        return f"{text.rstrip()}{last_digit}"
+    else:
+        # Return None instead of raising an error
+        return None
 
 def convert_example(example):
     """
@@ -116,34 +134,49 @@ def convert_example(example):
     # "process and answer are enclosed within <think> </think> and <answer> </answer> tags, respectively, i.e., "
     # "<think> reasoning process here </think><answer> answer here </answer>"
     #     )
-        SYSTEM_PROMPT = ('''
+        SYSTEM_PROMPT = ("""
              A conversation between User and Assistant. You are an advanced vision-language model expert in medical image analysis. You can analyze images at both the overall and pixel levels, compare feature extractions, and discern subtle differences between images.
-You are provided with a synthetic fundoscopy image. Your task is twofold:
-1.	Analysis: Examine the synthetic fundoscopy image and describe, step by step, how it differs from a normal fundoscopy image.
-2.	Diagnosis: Based on your analysis, determine whether the synthetic fundoscopy image show sign of disease.
+You are provided with a synthetic fundoscopy image. Your task is  threefold:
+1. please assess the quality of the fundoscopy by evaluating the clarity of anatomical structures, the visibility of key landmarks, and the absence of artifacts. Good quality images allow for clear visualization of the optic disc, macula, and vessels, while poor quality images are characterized by blurriness and obscuration , which artefacts or eye abnormalities cover more than 1/4 of images or  vascular arches or larger vascular arches are invisible.** evaluate the quality first and describe the quality assessment and before make the diagnosis **
+2.	Analysis: Examine the synthetic fundoscopy image and describe, step by step, how it differs from a normal fundoscopy image.
+3.	Diagnosis: Based on your analysis, determine whether the synthetic fundoscopy image show sign of disease.
 ** 0 =No diabetic retinopathy, 1= Mild non-proliferative diabetic retinopathy, 2 =Moderate non-proliferative diabetic retinopathy,3 = Severe non-proliferative diabetic retinopathy,4 =Proliferative diabetic retinopathy**. 
 Your final diagnosis must be a single number. No other responses are allowed.
 Please structure your response into two main sections: think and answer.
-•	think:
-Provide a detailed chain-of-thought explanation. Each reasoning step must begin with the word "thought:" and be separated by two newline characters (\n\n). In your chain-of-thought, include:
-1. Analysis of the task and the question.
-2. A summary of your key findings.
-3. Brainstorming of ideas and observations.
-4. Verification of the accuracy of each step.
-5. Any refinement, re-assessment, or backtracking if needed.
-•	Answer:
-Provide your final diagnosis as a single number:
-*0 =No diabetic retinopathy, 1= Mild non-proliferative diabetic retinopathy, 2 =Moderate non-proliferative diabetic retinopathy,3 = Severe non-proliferative diabetic retinopathy,4 =Proliferative diabetic retinopathy*. 
+**you have to reply in english only, any other language or special words is not allowed, and focus on diagnosis**
 
-The output format must strictly follow these tags:
-<think>
-... [your detailed chain-of-thought reasoning] ...
-</think>
-<answer>
-[final answer: "0" or "1" or "2" or "3" or "4"]
-</answer>
-Please ensure you adhere strictly to this format and that your final answer is only : "0" or "1" or "2" or "3" or "4"
-'''
+**Detailed Comparative Analysis:**
+    *   Perform a meticulous comparison. For each anatomical structure, clearly state what is observed in the image and then describe any **differences or abnormalities** compare to a normal fundoscopy image.
+    *   Focus on the following key areas and specific findings:
+    *   **Optic Disc:**
+        *   **Color:** (e.g., pinkish-orange, pale, hyperemic)
+        *   **Margins:** (e.g., sharp, blurred, swollen, elevated)
+        *   **Cup-to-Disc Ratio (CDR):** (e.g., normal 0.3-0.5, enlarged, obliterated)
+        *   **Presence of:** (e.g., papilledema, drusen, neovascularization)
+    *   **Retinal Vessels:**
+        *   **Caliber:** (e.g., normal, attenuated, dilated)
+        *   **Tortuosity:** (e.g., straight, tortuous)
+        *   **A-V Ratio:** (e.g., normal 2:3, altered)
+        *   **Presence of:** (e.g., hemorrhages [flame, dot-blot, boat-shaped], exudates [hard, soft/cotton wool spots], sheathing, neovascularization, venous engorgement, nicking)
+    *   **Macula and Fovea:**
+        *   **Foveal Reflex:** (e.g., present, absent)
+        *   **Pigmentary Changes:** (e.g., mottling, hyperpigmentation, hypopigmentation)
+        *   **Presence of:** (e.g., drusen, exudates, hemorrhages, edema, cysts, holes)
+    *   **Retinal Background (Peripheral Retina):**
+        *   **Color/Clarity:** (e.g., even, discolored, cloudy)
+        *   **Presence of:** (e.g., hemorrhages, exudates, drusen, cotton wool spots, retinal tears/detachment, laser scars, pigmentary changes)
+    *   **Vitreous:**
+        *   **Clarity:** (e.g., clear, hazy, presence of floaters/hemorrhage)
+**Summary of Key Abnormal Findings:**
+    *   Based on your detailed comparison, list the most prominent or concerning abnormalities observed in the current fundoscopy image that deviate from the normal reference.
+    ** provide the quality conclusion of this fundoscopy at the end**
+
+•	Answer:
+Provide your final diagnosis after consider about the quality and what you observe, as a single number:
+**0 =No diabetic retinopathy, 1= Mild non-proliferative diabetic retinopathy, 2 =Moderate non-proliferative diabetic retinopathy,3 = Severe non-proliferative diabetic retinopathy,4 =Proliferative diabetic retinopathy**. 
+
+
+""" 
         )
 
         messages.append({
@@ -151,7 +184,7 @@ Please ensure you adhere strictly to this format and that your final answer is o
             "content": [{"type": "text", "text": SYSTEM_PROMPT}],
         })
 
-    thinking = example.get("thinking")
+    #thinking = example.get("thinking")
     problem = example.get("problem")
     solution = example.get("solution")
     image = example.get("image")
@@ -164,7 +197,8 @@ Please ensure you adhere strictly to this format and that your final answer is o
     })
     messages.append({
         "role": "assistant",
-        "content": f"{thinking}\n\n{solution}",
+       # "content": f"{thinking}\n\n{solution}",
+        "content": f"{solution}",
     })
     
     example["messages"] = messages
@@ -193,6 +227,7 @@ def collate_fn(examples):
     batch["labels"] = labels
 
     return batch
+
 
 
 def main(script_args, training_args, model_args):
@@ -241,7 +276,8 @@ def main(script_args, training_args, model_args):
     # Load tokenizer
     ################
     global processor
-    if "vl" in model_args.model_name_or_path.lower():
+    #if "vl" in model_args.model_name_or_path.lower():
+    if "vl" in model_args.model_name_or_path.lower() or "qwen" in model_args.model_name_or_path.lower():
         processor = AutoProcessor.from_pretrained(
             model_args.model_name_or_path, trust_remote_code=model_args.trust_remote_code
         )
@@ -293,6 +329,7 @@ def main(script_args, training_args, model_args):
         eval_dataset=dataset[script_args.dataset_test_split] if training_args.eval_strategy != "no" else None,
         processing_class=processor.tokenizer,
         data_collator=collate_fn,
+       # compute_metrics=compute_metrics, 
         peft_config=get_peft_config(model_args)
     )
 
@@ -305,7 +342,8 @@ def main(script_args, training_args, model_args):
         checkpoint = training_args.resume_from_checkpoint
     elif last_checkpoint is not None:
         checkpoint = last_checkpoint
-    train_result = trainer.train(resume_from_checkpoint=checkpoint)
+    #train_result = trainer.train(resume_from_checkpoint=checkpoint)
+    train_result = trainer.train()
     metrics = train_result.metrics
     metrics["train_samples"] = len(dataset[script_args.dataset_train_split])
     trainer.log_metrics("train", metrics)

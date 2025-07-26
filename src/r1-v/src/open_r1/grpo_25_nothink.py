@@ -55,10 +55,12 @@ class GRPOScriptArguments(ScriptArguments):
         default=3136,
         metadata={"help": "Minimum number of pixels for the image"},
     )
+
+
 from trl.trainer.grpo_config import GRPOConfig as _GRPOConfig
 
 @dataclass
-class LocalGRPOConfig(_GRPOConfig):
+class LocalGRPOConfig(_GRPOConfig): # add after nothing ck100-r130
     """
     Adds a `target_kl` parameter so we can steer the adaptive‑KL controller.
     """
@@ -73,7 +75,7 @@ class LocalGRPOConfig(_GRPOConfig):
     )
 
 
-def accuracy_reward_old(completions, solution, **kwargs):
+def accuracy_reward_old(completions, solution, **kwargs): # before checkpoint 100+30
     """Reward function that checks if the completion is correct using either symbolic verification or exact string matching."""
     contents = [completion[0]["content"] for completion in completions]
     rewards = []
@@ -105,7 +107,7 @@ def accuracy_reward_old(completions, solution, **kwargs):
                 else:
                     try:
                         diff = abs(float(student_answer) - float(ground_truth))
-                        reward = max(0.0, 1 - diff / 2)          # for thinking, Leeyuyu/Qwen2.5-GRPO-fundo ck100 reward =                                                                        max(0.0, 1 - diff / 4) and if reward < 0.2: reward = -0.1,                                                                      change to reward = max(0.0, 1 - diff / 2) and temp 0.75, LR                                                                      2e-6 after saturated at ck100 and min 0.3-->0.2 for                                                                            reasoning and format
+                        reward = max(0.0, 1 - diff / 2)          # 0.75 if off by 1
                     except Exception:
                         pass
                 if reward < 0.2:
@@ -162,7 +164,11 @@ def accuracy_reward(completions, solution, **kwargs):
                     reward = -0.2  # Strong penalty for no answer
                 else:
                     # 2b. Compare the extracted answers
-                    if student_answer == ground_truth:
+                    if student_answer == "3" and ground_truth == "3":
+                        reward = 1.2
+                    elif student_answer == "4" and ground_truth == "4":
+                        reward = 1.2
+                    elif student_answer == ground_truth:
                         reward = 1.0
                     else:
                         try:
@@ -170,7 +176,7 @@ def accuracy_reward(completions, solution, **kwargs):
                             diff = abs(float(student_answer) - float(ground_truth))
                             reward = max(0.0, 1 - diff / 2)  # 0.75 if off by 1, etc.
                         except Exception:
-                            reward = -0.2 # after ck 100, change to this 
+                            reward = -0.2  # after ck100 +100+30, change to this 
                             #pass
                     # 2c. Penalize wrong answers
                     if reward ==0:
@@ -195,6 +201,7 @@ def format_reward(completions, **kwargs):
     completion_contents = [completion[0]["content"] for completion in completions]
     matches = [re.fullmatch(pattern, content, re.DOTALL) for content in completion_contents]
     return [0.1 if match else 0.0 for match in matches]
+    #[0.2 if match else 0.0 for match in matches]....before checkpoint 100
 
 def reasoning_steps_reward(completions, **kwargs):
     r"""Reward function that checks for clear step-by-step reasoning.
@@ -205,12 +212,13 @@ def reasoning_steps_reward(completions, **kwargs):
         \n\* - matches bullet points with asterisks
         First,|Second,|Next,|Finally, - matches transition words
     """
-    pattern = r"(Step \d+:|^\d+\.|\n-|\n\*|First,|Second,|Next,|Finally,|think,|Therefore,|thought,|quality,|good,|poor)"
+    pattern = r"(Step \d+:|^\d+\.|\n-|\n\*|observe,|notice,|find,|quality,|good,|poor)"
     completion_contents = [completion[0]["content"] for completion in completions]
     matches = [len(re.findall(pattern, content)) for content in completion_contents]
 
     # Magic number 3 to encourage 3 steps and more, otherwise partial reward
-    return [min(0.2, count / 10) for count in matches]
+    return [min(0.1, count / 10) for count in matches]
+    #[min(0.2, count / 10) for count in matches]...before checkpoint 100
 
 def weighted_reward(completions, solution, **kwargs):
     acc = accuracy_reward(completions, solution, **kwargs)
@@ -244,20 +252,44 @@ You are provided with a synthetic fundoscopy image. Your task is threefold:
 Please structure your response into two main sections: think and answer.
 **you have to reply in english only, any other language or special words is not allowed, and focus on diagnosis**
 •	think:
-Provide a detailed chain-of-thought explanation. Each reasoning step must begin with the word "thought:" and be separated by two newline characters (\n\n). In your chain-of-thought, include:
-1. Analysis of the task and the question.
-2. A summary of your key findings. including quality asessment of the fundoscopy
-3. Brainstorming of ideas and observations.
-4. Verification of the accuracy of each step.
-5. Any refinement, re-assessment, or backtracking if needed.
+<think>
+**Detailed Comparative Analysis:**
+    *   Perform a meticulous comparison. For each anatomical structure, clearly state what is observed in the image and then describe any **differences or abnormalities** compare to a normal fundoscopy image.
+    *   Focus on the following key areas and specific findings:
+    *   **Optic Disc:**
+        *   **Color:** (e.g., pinkish-orange, pale, hyperemic)
+        *   **Margins:** (e.g., sharp, blurred, swollen, elevated)
+        *   **Cup-to-Disc Ratio (CDR):** (e.g., normal 0.3-0.5, enlarged, obliterated)
+        *   **Presence of:** (e.g., papilledema, drusen, neovascularization)
+    *   **Retinal Vessels:**
+        *   **Caliber:** (e.g., normal, attenuated, dilated)
+        *   **Tortuosity:** (e.g., straight, tortuous)
+        *   **A-V Ratio:** (e.g., normal 2:3, altered)
+        *   **Presence of:** (e.g., hemorrhages [flame, dot-blot, boat-shaped], exudates [hard, soft/cotton wool spots], sheathing, neovascularization, venous engorgement, nicking)
+    *   **Macula and Fovea:**
+        *   **Foveal Reflex:** (e.g., present, absent)
+        *   **Pigmentary Changes:** (e.g., mottling, hyperpigmentation, hypopigmentation)
+        *   **Presence of:** (e.g., drusen, exudates, hemorrhages, edema, cysts, holes)
+
+    *   **Retinal Background (Peripheral Retina):**
+        *   **Color/Clarity:** (e.g., even, discolored, cloudy)
+        *   **Presence of:** (e.g., hemorrhages, exudates, drusen, cotton wool spots, retinal tears/detachment, laser scars, pigmentary changes)
+    *   **Vitreous:**
+        *   **Clarity:** (e.g., clear, hazy, presence of floaters/hemorrhage)
+**Summary of Key Abnormal Findings:**
+    *   Based on your detailed comparison, list the most prominent or concerning abnormalities observed in the current fundoscopy image that deviate from the normal reference.
+     ** provide the quality conclusion of this fundoscopy at the end**
+</think>
 
 •	Answer:
-Provide your final diagnosis after consider the quality and the what you think ,as a single number:
+<answer>
+Provide your final diagnosis after consider about the quality and what you observe, as a single number:
 0 =No diabetic retinopathy, 1= Mild non-proliferative diabetic retinopathy, 2 =Moderate non-proliferative diabetic retinopathy,3 = Severe non-proliferative diabetic retinopathy,4 =Proliferative diabetic retinopathy, 5=diabetic macular edema**. 
+</answer>
 
 The output format must strictly follow these tags:
 <think>
-... [your detailed chain-of-thought reasoning] ...
+... [your detailed observation] ...
 </think>
 <answer>
 [final answer: "0" or "1" or "2" or "3" or "4"]
@@ -289,27 +321,61 @@ def main(script_args, training_args, model_args):
     QUESTION_TEMPLATE = "{Question}  Output the thinking process in <think> </think> and final answer (number) in <answer> </answer> tags."
     QUESTION_TEMPLATE_IMAGE = """{Question} A conversation between User and Assistant. You are an advanced vision-language model expert in medical image analysis. You can analyze images at both the overall and pixel levels, compare feature extractions, and discern subtle differences between images.
 You are provided with a synthetic fundoscopy image. Your task is threefold:
-1. please assess the quality of the fundoscopy by evaluating the clarity of anatomical structures, the visibility of key landmarks, and the absence of artifacts. Good quality images allow for clear visualization of the optic disc, macula, and vessels, while poor quality images are characterized by blurriness and obscuration , which artefacts or eye abnormalities cover more than 1/4 of images or  vascular arches or larger vascular arches are invisible.** evaluate the quality first and describe the quality assessment and before make the diagnosis**
+1. please assess the quality of the fundoscopy by evaluating the clarity of anatomical structures, the visibility of key landmarks, and the absence of artifacts. Good quality images allow for clear visualization of the optic disc, macula, and vessels, while poor quality images are characterized by blurriness and obscuration , which artefacts or eye abnormalities cover more than 1/4 of images or  vascular arches or larger vascular arches are invisible.** evaluate the quality first and describe the quality assessment and before make the diagnosis **
 2.	Analysis: Examine the synthetic fundoscopy image and describe, step by step, how it differs from a normal fundoscopy image.
 3.	Diagnosis: Based on your analysis, determine whether the synthetic fundoscopy image show sign of disease.
 ** 0 =No diabetic retinopathy, 1= Mild non-proliferative diabetic retinopathy, 2 =Moderate non-proliferative diabetic retinopathy,3 = Severe non-proliferative diabetic retinopathy,4 =Proliferative diabetic retinopathy**. 
-one fundoscopy image may have multiple answers, but choose the most confident diagnosis. Your final diagnosis must be a single number. No other responses are allowed.
+Your final diagnosis must be a single number. No other responses are allowed.
 Please structure your response into two main sections: think and answer.
 **you have to reply in english only, any other language or special words is not allowed, and focus on diagnosis**
-•	think:
-Provide a detailed chain-of-thought explanation. Each reasoning step must begin with the word "thought:" and be separated by two newline characters (\n\n). In your chain-of-thought, include:
-1. Analysis of the task and the question.
-2. A summary of your key findings. including quality asessment of the fundoscopy
-3. Brainstorming of ideas and observations.
-4. Verification of the accuracy of each step.
-5. Any refinement, re-assessment, or backtracking if needed.
-•	Answer:
-Provide your final diagnosis after consider about the quality and what you think, as a single number:
-**0 =No diabetic retinopathy, 1= Mild non-proliferative diabetic retinopathy, 2 =Moderate non-proliferative diabetic retinopathy,3 = Severe non-proliferative diabetic retinopathy,4 =Proliferative diabetic retinopathy**. 
+•	think: <think>
+**Detailed Comparative Analysis:**
+    *   Perform a meticulous comparison. For each anatomical structure, clearly state what is observed in the image and then describe any **differences or abnormalities** compare to a normal fundoscopy image.
+    *   Focus on the following key areas and specific findings:
+    *   **Optic Disc:**
+        *   **Color:** (e.g., pinkish-orange, pale, hyperemic)
+        *   **Margins:** (e.g., sharp, blurred, swollen, elevated)
+        *   **Cup-to-Disc Ratio (CDR):** (e.g., normal 0.3-0.5, enlarged, obliterated)
+        *   **Presence of:** (e.g., papilledema, drusen, neovascularization)
+    *   **Retinal Vessels:**
+        *   **Caliber:** (e.g., normal, attenuated, dilated)
+        *   **Tortuosity:** (e.g., straight, tortuous)
+        *   **A-V Ratio:** (e.g., normal 2:3, altered)
+        *   **Presence of:** (e.g., hemorrhages [flame, dot-blot, boat-shaped], exudates [hard, soft/cotton wool spots], sheathing, neovascularization, venous engorgement, nicking)
+    *   **Macula and Fovea:**
+        *   **Foveal Reflex:** (e.g., present, absent)
+        *   **Pigmentary Changes:** (e.g., mottling, hyperpigmentation, hypopigmentation)
+        *   **Presence of:** (e.g., drusen, exudates, hemorrhages, edema, cysts, holes)
+    *   **Retinal Background (Peripheral Retina):**
+        *   **Color/Clarity:** (e.g., even, discolored, cloudy)
+        *   **Presence of:** (e.g., hemorrhages, exudates, drusen, cotton wool spots, retinal tears/detachment, laser scars, pigmentary changes)
+    *   **Vitreous:**
+        *   **Clarity:** (e.g., clear, hazy, presence of floaters/hemorrhage)
+**Summary of Key Abnormal Findings:**
+    *   Based on your detailed comparison, list the most prominent or concerning abnormalities observed in the current fundoscopy image that deviate from the normal reference.
+    ** provide the quality conclusion of this fundoscopy at the end**
+</think>
+•	Answer: 
+the criteria of Stages of Diabetic Retinopathy and their Fundoscopic Findings:
+No diabetic retinopathy:
+No visible retinal changes.
+Non-Proliferative Diabetic Retinopathy (NPDR):
+Mild NPDR: Presence of microaneurysms (tiny, balloon-like dilations of retinal capillaries).
+Moderate NPDR: Microaneurysms, hemorrhages (small bleeds in the retina), and hard exudates (yellowish deposits of lipid and protein).
+Severe NPDR: 4:2:1 rule: hemorrhages in all four quadrants, venous beading in two or more quadrants, or intraretinal microvascular abnormalities (IRMA) in one or more quadrants.
 
-The output format must strictly follow these tags:
+Proliferative Diabetic Retinopathy (PDR):
+Neovascularization (new blood vessel growth) on the optic disc or retina, often accompanied by vitreous hemorrhage or tractional retinal detachment.
+Diabetic Macular Edema (DME):
+Fluid and thickening of the macula (central part of the retina), which can occur at any stage of DR. 
+<answer>
+Provide your final diagnosis after consider about the quality and what you observe, as a single number:
+**0 =No diabetic retinopathy, 1= Mild non-proliferative diabetic retinopathy, 2 =Moderate non-proliferative diabetic retinopathy,3 = Severe non-proliferative diabetic retinopathy,4 =Proliferative diabetic retinopathy**. 
+</answer>
+
+**The output format must strictly follow these tags**:
 <think>
-... [your detailed chain-of-thought reasoning] ...
+... [your detailed observation] ...
 </think>
 <answer>
 [final answer: "0" or "1" or "2" or "3" or "4"]
@@ -348,7 +414,7 @@ Please ensure you adhere strictly to this format and that your final answer is o
 
     # Initialize the GRPO trainer
     trainer = trainer_cls(
-        model=model_args.model_name_or_path, # beta change from 0.04 -->0.05, increase completetion, and -0.2if no answer after ck100+78
+        model=model_args.model_name_or_path,
         reward_funcs=reward_funcs,
         args=training_args,
         train_dataset=dataset[script_args.dataset_train_split],
@@ -356,7 +422,7 @@ Please ensure you adhere strictly to this format and that your final answer is o
         peft_config=get_peft_config(model_args),
         attn_implementation=model_args.attn_implementation,
         max_pixels=script_args.max_pixels,
-        min_pixels=script_args.min_pixels,
+        min_pixels=script_args.min_pixels
     )
 
     # Train and push the model to the Hub
@@ -369,6 +435,6 @@ Please ensure you adhere strictly to this format and that your final answer is o
 
 
 if __name__ == "__main__":
-    parser = TrlParser((GRPOScriptArguments, GRPOConfig, ModelConfig))
+    parser = TrlParser((GRPOScriptArguments, LocalGRPOConfig, ModelConfig))
     script_args, training_args, model_args = parser.parse_args_and_config()
     main(script_args, training_args, model_args)

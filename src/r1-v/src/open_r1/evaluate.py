@@ -34,6 +34,7 @@ metric = multilingual_extractive_match_metric(
 )
 
 
+
 def prompt_fn(line, task_name: str = None):
     """Assumes the model is either prompted to emit \\boxed{answer} or does so automatically"""
     return Doc(
